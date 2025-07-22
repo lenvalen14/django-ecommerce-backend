@@ -90,10 +90,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         summary="Danh sách sản phẩm",
         description="Lấy danh sách toàn bộ sản phẩm, có phân trang",
         responses={200: ProductSerializer(many=True)},
-        parameters=[
-            OpenApiParameter(name="page", type=int, location=OpenApiParameter.QUERY),
-            OpenApiParameter(name="category", type=int, location=OpenApiParameter.QUERY, required=False, description="Lọc theo category id")
-        ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
