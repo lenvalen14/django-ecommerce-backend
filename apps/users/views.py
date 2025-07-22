@@ -6,6 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from config.renderers import CustomResponseRenderer
 from .models import Address, Profile
@@ -14,7 +15,7 @@ from .serializers import (
     AddressSerializer,
     LoginSerializer,
     ProfileSerializer,
-    RegisterSerializer, UserSerializer,
+    RegisterSerializer, UserSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, LogoutSerializer,
 )
 
 User = get_user_model()
@@ -46,6 +47,70 @@ class LoginView(APIView):
 
         return Response({
             "message": "Logged in successfully",
+            "data": serializer.validated_data
+        }, status=status.HTTP_200_OK)
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Đăng xuất",
+    description="Thu hồi refresh token và đưa vào blacklist.",
+    request=LogoutSerializer,
+    responses={205: None, 400: "Bad Request"}
+)
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    renderer_classes = [CustomResponseRenderer]
+
+    def post(self, request):
+        serializer = LogoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        refresh_token = serializer.validated_data["refresh"]
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"message": "Logged out successfully"}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Quên mật khẩu (Forget Password)",
+    description="Cung cấp email và mật khẩu mới để đặt lại mật khẩu nếu quên. Không yêu cầu xác thực.",
+    request=ForgetPasswordSerializer,
+    responses={200: ForgetPasswordSerializer}
+)
+class ForgetPasswordView(APIView):
+    permission_classes = [permissions.AllowAny]
+    renderer_classes = [CustomResponseRenderer]
+
+    def post(self, request):
+        serializer = ForgetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({
+            "message": "Password has been reset successfully",
+            "data": serializer.validated_data
+        }, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Đổi mật khẩu (Reset Password)",
+    description="Người dùng đã đăng nhập nhập mật khẩu hiện tại, mật khẩu mới và xác nhận.",
+    request=ResetPasswordSerializer,
+    responses={200: ResetPasswordSerializer}
+)
+class ResetPasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    renderer_classes = [CustomResponseRenderer]
+
+    def post(self, request):
+        data = request.data.copy()
+        data["email"] = request.user.email  # tự động lấy email từ user đã login
+        serializer = ResetPasswordSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        return Response({
+            "message": "Password has been reset successfully",
             "data": serializer.validated_data
         }, status=status.HTTP_200_OK)
 

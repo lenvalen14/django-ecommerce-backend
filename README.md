@@ -94,11 +94,14 @@ APP_ENV=dev python manage.py runserver
 ### 🔐 Authentication
 - Đăng ký (Register)
 - Đăng nhập bằng email (Login, JWT)
+- Đăng xuất
 
 ### 🧍‍♂️ Users
 - Profile người dùng
 - Địa chỉ người dùng
 - Phân quyền
+- Đổi mật khẩu
+- Quên mật khẩu
 
 ### 📦 Products
 - CRUD sản phẩm

@@ -86,3 +86,59 @@ class LoginSerializer(serializers.Serializer):
             "refreshToken": str(refresh),
             "user": UserSerializer(user).data
         }
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+    def validate(self, attrs):
+        refresh = attrs.get("refresh")
+        if not refresh:
+            raise serializers.ValidationError("Missing refresh token")
+        return attrs
+
+class ForgetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        new_password = attrs.get("new_password")
+        confirm_password = attrs.get("confirm_password")
+
+        user = User.objects.filter(email=email).first()
+        if not user:
+            raise serializers.ValidationError("User not found")
+
+        if new_password != confirm_password:
+            raise serializers.ValidationError("Passwords don't match")
+
+        user.set_password(new_password)
+        user.save()
+
+        return {"message": "Password has been reset"}
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+        new_password = attrs.get("new_password")
+        confirm_password = attrs.get("confirm_password")
+
+        user = User.objects.filter(email=email).first()
+        if not user:
+            raise serializers.ValidationError("User not found")
+        if not user.check_password(password):
+            raise serializers.ValidationError("Password doesn't match")
+        if new_password != confirm_password:
+            raise serializers.ValidationError("New password doesn't match")
+        user.set_password(new_password)
+        user.save()
+        return {"message": "Password has been reset"}
+
+
