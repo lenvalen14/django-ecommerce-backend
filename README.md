@@ -25,7 +25,17 @@
 ---
 
 ## 🗂️ Cấu trúc chính
-
+<pre lang="markdown">
+E-commerce-API/
+├── apps/
+│ ├── users/ # Quản lý người dùng, auth, profile
+│ ├── products/ # Danh mục, sản phẩm
+│ └── orders/ # Đơn hàng, mục trong đơn hàng
+├── config/ # Cấu hình Django (settings, urls,...)
+├── .env.dev # Biến môi trường cho dev
+├── manage.py
+└── requirements.txt
+</pre>
 
 ---
 
