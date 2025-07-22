@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 
 from apps.products.models import Product, Category
@@ -76,6 +77,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
     renderer_classes = [CustomResponseRenderer]
     permission_classes = [IsAdminOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         category_pk = self.kwargs.get('category_pk')
@@ -107,19 +109,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="Tạo sản phẩm mới",
         description="API tạo mới sản phẩm có upload hình ảnh",
-        request={
-            'multipart/form-data': {
-                'type': 'object',
-                'properties': {
-                    'product_name': {'type': 'string'},
-                    'description': {'type': 'string'},
-                    'price': {'type': 'number'},
-                    'image': {'type': 'string', 'format': 'binary'},
-                    'category': {'type': 'integer'}
-                },
-                'required': ['product_name', 'description', 'price', 'category']
-            }
-        },
         responses={201: ProductSerializer}
     )
     def create(self, request, *args, **kwargs):

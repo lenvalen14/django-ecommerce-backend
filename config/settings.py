@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from decouple import Config, RepositoryEnv
 
+from apps import users
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 APP_ENV = os.getenv("APP_ENV", "dev")
@@ -13,18 +15,6 @@ config = Config(RepositoryEnv(str(env_path)))
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', cast=bool, default=False)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
-
-# Database config
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DATABASE_NAME"),
-        "USER": config("DATABASE_USER"),
-        "PASSWORD": config("DATABASE_PASSWORD"),
-        "HOST": config("DATABASE_HOST", default="localhost"),
-        "PORT": config("DATABASE_PORT", default="5432"),
-    }
-}
 
 # Cloudinary config
 import cloudinary
@@ -104,17 +94,17 @@ SPECTACULAR_SETTINGS = {
 }
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("DATABASE_NAME"),
         "USER": config("DATABASE_USER"),
         "PASSWORD": config("DATABASE_PASSWORD"),
-        "HOST": config("DATABASE_HOST"),
-        "PORT": config("DATABASE_PORT"),
+        "HOST": config("DATABASE_HOST", default="localhost"),
+        "PORT": config("DATABASE_PORT", default="5432"),
     }
 }
+
 
 cloudinary.config(
     cloud_name=config("CLOUD_NAME"),

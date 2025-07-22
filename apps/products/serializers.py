@@ -24,6 +24,7 @@ class ProductSerializer(serializers.ModelSerializer):
     - Khi đọc (GET): Hiển thị chi tiết category (dạng nested object).
     - Khi ghi (POST/PUT): Chấp nhận 'category_id' để tạo hoặc cập nhật quan hệ.
     """
+    image = serializers.ImageField(required=False)
     category = CategorySerializer(read_only=True)
 
     category_id = serializers.PrimaryKeyRelatedField(
