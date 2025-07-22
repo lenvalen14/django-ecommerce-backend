@@ -1,4 +1,9 @@
+import random
+import re
+
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.core.mail import send_mail
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status, viewsets, permissions
 from rest_framework.pagination import PageNumberPagination
@@ -8,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from config import settings
 from config.renderers import CustomResponseRenderer
 from .models import Address, Profile
 from .permissions import IsOwnerOrReadOnly, IsAdminOrReadOnly
@@ -16,6 +22,7 @@ from .serializers import (
     LoginSerializer,
     ProfileSerializer,
     RegisterSerializer, UserSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, LogoutSerializer,
+    VerifyOTPSerializer,
 )
 
 User = get_user_model()
@@ -72,6 +79,53 @@ class LogoutView(APIView):
             return Response({"message": "Logged out successfully"}, status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Gửi mã xác thực",
+    description="Gửi mã OTP xác thực qua email (hết hạn sau 5 phút).",
+    request={"application/json": {"type": "object", "properties": {
+        "email": {"type": "string", "format": "email"}
+    }, "required": ["email"]}}
+)
+class SendOTPView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+
+        if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return Response({"detail": "Invalid email address"}, status=400)
+
+        otp = random.randint(100000, 999999)
+        cache.set(f"otp:{email}", str(otp), timeout=300)  # 5 phút
+
+        try:
+            send_mail(
+                subject="Mã xác thực OTP của bạn",
+                message=f"Mã OTP của bạn là: {otp}",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            return Response({"detail": f"Failed to send email: {str(e)}"}, status=500)
+
+        return Response({
+            "message": "OTP đã được gửi thành công đến email.",
+        }, status=status.HTTP_200_OK)
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Xác thực mã",
+)
+class VerifyOTPView(APIView):
+    serializer_class = VerifyOTPSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "OTP has been verified successfully"}, status=200)
 
 @extend_schema(
     tags=["Auth"],

@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -141,4 +142,31 @@ class ResetPasswordSerializer(serializers.Serializer):
         user.save()
         return {"message": "Password has been reset"}
 
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        otp = attrs.get("otp")
+
+        # Kiểm tra người dùng tồn tại
+        user = User.objects.filter(email=email).first()
+        if not user:
+            raise serializers.ValidationError("User not found")
+
+        # Lấy OTP trong cache
+        cached_otp = cache.get(f"otp:{email}")
+        if not cached_otp:
+            raise serializers.ValidationError("OTP expired or not found")
+
+        if otp != cached_otp:
+            raise serializers.ValidationError("Invalid OTP")
+
+        return attrs
+
+    def save(self, **kwargs):
+        email = self.validated_data["email"]
+        cache.delete(f"otp:{email}")
+        return {"message": "OTP verified successfully"}
 

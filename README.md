@@ -101,7 +101,7 @@ APP_ENV=dev python manage.py runserver
 - Địa chỉ người dùng
 - Phân quyền
 - Đổi mật khẩu
-- Quên mật khẩu
+- Quên mật khẩu: SendOTP qua gmail -> Verify OTP -> Reset Password.
 
 ### 📦 Products
 - CRUD sản phẩm
