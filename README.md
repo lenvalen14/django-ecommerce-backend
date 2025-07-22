@@ -116,6 +116,6 @@ APP_ENV=dev python manage.py runserver
 Sau khi chạy server, truy cập:
 
 ```bash
-http://localhost:8000/api/schema/swagger-ui/
+http://localhost:8000/api/v1/schema/swagger-ui/
 ```
 
