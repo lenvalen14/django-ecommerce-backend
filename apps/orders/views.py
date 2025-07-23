@@ -1,10 +1,12 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiExample
 
-from apps.orders.models import Order
-from apps.orders.serializers import OrderCreateSerializer
+from apps.orders.models import Order, OrderStatus
+from apps.orders.permissions import IsOwner
+from apps.orders.serializers import OrderCreateSerializer, OrderUpdateStatusSerializer
 from config.renderers import CustomResponseRenderer
 
 
@@ -13,8 +15,12 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderCreateSerializer
     pagination_class = PageNumberPagination
-    permission_classes = [permissions.IsAuthenticated]
     renderer_classes = [CustomResponseRenderer]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'cancel', 'update_status', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwner()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
@@ -54,8 +60,72 @@ class OrderViewSet(viewsets.ModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({
+                "message": "List of orders get successfully",
+                "data": serializer.data
+            })
+
+        # fallback nếu không paginate
         serializer = self.get_serializer(queryset, many=True)
         return Response({
-            "message": "List of orders",
+            "message": "List of orders get successfully",
             "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        })
+
+    @extend_schema(
+        summary="Cập nhật trạng thái đơn hàng",
+        description="Chỉ cho phép cập nhật trạng thái từ các trạng thái đang xử lý sang trạng thái tiếp theo hợp lệ.",
+        request=OrderUpdateStatusSerializer,
+    )
+    @action(detail=True, methods=['patch'], url_path='update-status')
+    def update_status(self, request, pk=None):
+        order = self.get_object()
+        user = request.user
+
+        status_value = request.data.get('status')
+        if not status_value:
+            return Response({'message': 'Trường status là bắt buộc.'}, status=400)
+
+        is_admin = user.is_staff or getattr(user, 'role', None) == 'admin'
+
+        # Các trạng thái mà user được phép cập nhật
+        allowed_user_statuses = [OrderStatus.CANCELED, OrderStatus.RETURNED]
+
+        if not is_admin and status_value not in allowed_user_statuses:
+            return Response({'message': "You don't have permission to change the order status"}, status=403)
+
+        serializer = OrderUpdateStatusSerializer(order, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({
+            'message': 'Update status successfully',
+            'data': OrderUpdateStatusSerializer(order).data
+        }, status=200)
+
+    @extend_schema(
+        summary="Huỷ đơn hàng",
+        description="Huỷ đơn hàng khi đang ở trạng thái PENDING.",
+        request=None,
+    )
+    @action(detail=True, methods=['patch'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+
+        if order.status != OrderStatus.PENDING:
+            return Response({
+                'message': "Can't cancel order",
+            }, status=400)
+
+        order.status = OrderStatus.CANCELED
+        order.save(update_fields=['status'])
+
+        return Response({
+            'message': 'Cancel order successfully.',
+            'data': OrderUpdateStatusSerializer(order).data
+        }, status=200)
+

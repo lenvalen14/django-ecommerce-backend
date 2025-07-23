@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from apps.orders.models import Order, OrderItem
+from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import Product
 
 
@@ -25,7 +25,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ('id', 'user', 'total_price', 'created_at', 'items', 'order_items')
+        fields = ('id', 'user', 'total_price', 'status', 'created_at', 'items', 'order_items')
         read_only_fields = ('id', 'created_at', 'total_price', 'order_items')
 
 
@@ -70,3 +70,25 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             order.save(update_fields=["total_price"])
 
         return order
+
+class OrderUpdateStatusSerializer(serializers.ModelSerializer):
+    status = serializers.ChoiceField(choices=OrderStatus.choices)
+
+    class Meta:
+        model = Order
+        fields = ('status',)
+
+    def validate_status(self, value):
+        FINAL_STATUSES = {
+            OrderStatus.DELIVERED,
+            OrderStatus.CANCELED
+        }
+
+        if self.instance and self.instance.status in FINAL_STATUSES:
+            raise serializers.ValidationError("Đơn hàng đã hoàn tất hoặc hủy thì không được cập nhật.")
+
+        return value
+    def update(self, instance, validated_data):
+        instance.status = validated_data.get('status', instance.status)
+        instance.save(update_fields=['status'])
+        return instance

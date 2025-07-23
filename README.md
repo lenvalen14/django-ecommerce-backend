@@ -112,7 +112,8 @@ APP_ENV=dev python manage.py runserver
 - Tạo đơn hàng kèm danh sách sản phẩm
 - Tự động trừ kho khi tạo đơn
 - Tính tổng tiền đơn hàng
-- Trạng thái đơn hàng (Pending, Confirmed,...)
+- Cập nhật trạng thái đơn hàng (Pending, Confirmed,...) cho admin, (Returned, Canceled) cho user
+- Hủy đơn hàng khi chưa xác nhận
 
 ---
 ### 📘 Tài liệu API

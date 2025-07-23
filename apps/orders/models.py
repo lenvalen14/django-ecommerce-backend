@@ -20,9 +20,8 @@ class OrderStatus(models.TextChoices):
     PROCESSING = 'processing', 'Processing'
     SHIPPED = 'shipped', 'Shipped'
     DELIVERED = 'delivered', 'Delivered'
-    CANCELLED = 'cancelled', 'Cancelled'
+    CANCELED = 'canceled', 'Canceled'
     RETURNED = 'returned', 'Returned'
-    REFUNDED = 'refunded', 'Refunded'
 
 
 class Order(models.Model):
