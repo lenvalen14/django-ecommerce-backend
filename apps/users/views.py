@@ -4,7 +4,7 @@ import re
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.mail import send_mail
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework import generics, status, viewsets, permissions
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -22,7 +22,7 @@ from .serializers import (
     LoginSerializer,
     ProfileSerializer,
     RegisterSerializer, UserSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, LogoutSerializer,
-    VerifyOTPSerializer,
+    VerifyOTPSerializer, SendOTPSerializer,
 )
 
 User = get_user_model()
@@ -62,7 +62,10 @@ class LoginView(APIView):
     summary="Đăng xuất",
     description="Thu hồi refresh token và đưa vào blacklist.",
     request=LogoutSerializer,
-    responses={205: None, 400: "Bad Request"}
+    responses={
+        205: OpenApiResponse(description="Logged out successfully"),
+        400: OpenApiResponse(description="Invalid refresh token"),
+    }
 )
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -84,19 +87,17 @@ class LogoutView(APIView):
     tags=["Auth"],
     summary="Gửi mã xác thực",
     description="Gửi mã OTP xác thực qua email (hết hạn sau 5 phút).",
-    request={"application/json": {"type": "object", "properties": {
-        "email": {"type": "string", "format": "email"}
-    }, "required": ["email"]}}
+    request=SendOTPSerializer,
+    responses={200: OpenApiResponse(description="OTP sent successfully")}
 )
 class SendOTPView(APIView):
     def post(self, request):
-        email = request.data.get("email")
+        serializer = SendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return Response({"detail": "Invalid email address"}, status=400)
-
+        email = serializer.validated_data["email"]
         otp = random.randint(100000, 999999)
-        cache.set(f"otp:{email}", str(otp), timeout=300)  # 5 phút
+        cache.set(f"otp:{email}", str(otp), timeout=300)
 
         try:
             send_mail(
@@ -109,9 +110,7 @@ class SendOTPView(APIView):
         except Exception as e:
             return Response({"detail": f"Failed to send email: {str(e)}"}, status=500)
 
-        return Response({
-            "message": "OTP đã được gửi thành công đến email.",
-        }, status=status.HTTP_200_OK)
+        return Response({"message": "OTP đã được gửi thành công đến email."})
 
 @extend_schema(
     tags=["Auth"],

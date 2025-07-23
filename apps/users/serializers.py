@@ -170,3 +170,11 @@ class VerifyOTPSerializer(serializers.Serializer):
         cache.delete(f"otp:{email}")
         return {"message": "OTP verified successfully"}
 
+class SendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    def validate(self, attrs):
+        email = attrs.get("email")
+        if not email:
+            raise serializers.ValidationError("Email is required")
+
+

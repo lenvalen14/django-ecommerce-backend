@@ -102,7 +102,7 @@ DATABASES = {
         "NAME": config("DATABASE_NAME"),
         "USER": config("DATABASE_USER"),
         "PASSWORD": config("DATABASE_PASSWORD"),
-        'HOST': os.environ.get('DATABASE_HOST', 'postgres'),
+        'HOST': os.environ.get('DATABASE_HOST'),
         "PORT": config("DATABASE_PORT", default="5432"),
     }
 }
