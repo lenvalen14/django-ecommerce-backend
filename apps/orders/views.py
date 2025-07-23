@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -107,25 +108,29 @@ class OrderViewSet(viewsets.ModelViewSet):
             'data': OrderUpdateStatusSerializer(order).data
         }, status=200)
 
+    from django.db import transaction
+
+    @action(detail=True, methods=['patch'], url_path='cancel')
     @extend_schema(
         summary="Huỷ đơn hàng",
         description="Huỷ đơn hàng khi đang ở trạng thái PENDING.",
         request=None,
     )
-    @action(detail=True, methods=['patch'], url_path='cancel')
     def cancel(self, request, pk=None):
-        order = self.get_object()
+        with transaction.atomic():
+            order = self.get_object()
+            order.refresh_from_db()
 
-        if order.status != OrderStatus.PENDING:
+            if order.status != OrderStatus.PENDING:
+                return Response({
+                    'message': "Can't cancel order",
+                }, status=400)
+
+            order.status = OrderStatus.CANCELED
+            order.save(update_fields=['status'])
+
             return Response({
-                'message': "Can't cancel order",
-            }, status=400)
-
-        order.status = OrderStatus.CANCELED
-        order.save(update_fields=['status'])
-
-        return Response({
-            'message': 'Cancel order successfully.',
-            'data': OrderUpdateStatusSerializer(order).data
-        }, status=200)
+                'message': 'Cancel order successfully.',
+                'data': OrderUpdateStatusSerializer(order).data
+            }, status=200)
 
