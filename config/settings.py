@@ -3,8 +3,6 @@ from datetime import timedelta
 from pathlib import Path
 from decouple import Config, RepositoryEnv
 
-from apps import users
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 APP_ENV = os.getenv("APP_ENV", "dev")
@@ -36,6 +34,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.products",
     "apps.orders",
+    "apps.notifications",
     "rest_framework",
     "cloudinary",
     "cloudinary_storage",
@@ -99,11 +98,11 @@ SPECTACULAR_SETTINGS = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DATABASE_NAME"),
-        "USER": config("DATABASE_USER"),
-        "PASSWORD": config("DATABASE_PASSWORD"),
-        'HOST': os.environ.get('DATABASE_HOST'),
-        "PORT": config("DATABASE_PORT", default="5432"),
+        "NAME": config("POSTGRES_DB"),
+        "USER": config("POSTGRES_USER"),
+        "PASSWORD": config("POSTGRES_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
+        "PORT": os.getenv("POSTGRES_POST", "5432"),
     }
 }
 
@@ -161,6 +160,30 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = config("EMAIL_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+ORDER_TOPIC = 'order-events'
+NOTIFY_TOPIC = 'notification-events'
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "formatters": {
+        "simple": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",  # hoặc INFO nếu không muốn quá nhiều log
+    },
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

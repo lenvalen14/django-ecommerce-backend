@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import Product
@@ -16,10 +15,25 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ('product_id', 'quantity')
 
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.product_name', read_only=True)
+    product_image = serializers.ImageField(source='product.image', read_only=True)  # nếu có
+    unit_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = (
+            'product_id',
+            'product_name',
+            'product_image',
+            'quantity',
+            'unit_price',
+        )
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemCreateSerializer(many=True, write_only=True)  # dùng để tạo
-    order_items = OrderItemCreateSerializer(many=True, read_only=True)  # dùng để hiển thị sau khi tạo
+    order_items = OrderItemSerializer(many=True, read_only=True) # dùng để hiển thị sau khi tạo
 
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
@@ -32,7 +46,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Tạo đơn hàng kèm các OrderItem liên kết.
-        Đồng thời trừ kho từng sản phẩm.
         """
         items_data = validated_data.pop('items')
 
@@ -47,12 +60,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             for item_data in items_data:
                 product = item_data['product']
                 quantity = item_data['quantity']
-
-                # Trừ tồn kho
-                try:
-                    product.decrease_stock(quantity)
-                except ValidationError as e:
-                    raise serializers.ValidationError({'detail': str(e)})
 
                 # Tạo OrderItem
                 unit_price = product.price * quantity

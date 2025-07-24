@@ -5,10 +5,6 @@ services:
     restart: always
     env_file:
       - .env.dev
-    environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
     ports:
       - "5433:5432"
     volumes:
@@ -20,6 +16,26 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
 
   backend:
     build:
@@ -36,5 +52,20 @@ services:
     depends_on:
       - postgres
       - redis
+      - kafka
+  kafka-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kafka_consumer
+    command: python events/consumers/order_consumer.py
+    env_file:
+      - .env.dev
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      - kafka
+      - postgres
+
 volumes:
   postgres_data:

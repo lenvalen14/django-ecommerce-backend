@@ -9,6 +9,9 @@ from apps.orders.models import Order, OrderStatus
 from apps.orders.permissions import IsOwner
 from apps.orders.serializers import OrderCreateSerializer, OrderUpdateStatusSerializer
 from config.renderers import CustomResponseRenderer
+from events.handlers.handle_order_canceled import publish_order_canceled_event
+from events.handlers.handle_order_created import publish_order_created_event
+from events.handlers.handle_order_delivered import publish_order_delivered_event
 
 
 @extend_schema(tags=["Orders"])
@@ -50,6 +53,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = OrderCreateSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
+        publish_order_created_event(order)
         return Response({
             "message": "Created order successfully",
             "data": OrderCreateSerializer(order).data
@@ -99,6 +103,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not is_admin and status_value not in allowed_user_statuses:
             return Response({'message': "You don't have permission to change the order status"}, status=403)
 
+        if order.status != 'DELIVERED' and status_value == 'delivered':
+            publish_order_delivered_event(order)
+
         serializer = OrderUpdateStatusSerializer(order, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -108,9 +115,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             'data': OrderUpdateStatusSerializer(order).data
         }, status=200)
 
-    from django.db import transaction
-
-    @action(detail=True, methods=['patch'], url_path='cancel')
+    @action(detail=True, methods=['post'], url_path='cancel')
     @extend_schema(
         summary="Huỷ đơn hàng",
         description="Huỷ đơn hàng khi đang ở trạng thái PENDING.",
@@ -125,6 +130,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 return Response({
                     'message': "Can't cancel order",
                 }, status=400)
+
+            publish_order_canceled_event(order)
 
             order.status = OrderStatus.CANCELED
             order.save(update_fields=['status'])
